@@ -1,49 +1,233 @@
 # JobIA
 
-**Your AI-powered job finder.**
+**Tu buscador inteligente de empleo, trabajo remoto y oportunidades profesionales.**
 
-JobIA is the future mobile product built on top of the Bitey Trainer intelligence engine. It is designed to help people discover work opportunities that match their real skills, languages, location, availability, salary expectations, and preferred work mode.
+JobIA is the user-facing application of the Bitey ecosystem for people who want to discover work opportunities that match their real-world profile. It is intentionally broader than technology or AI jobs: a programmer, accountant, economics graduate, teacher, technician, construction worker, administrative worker, designer, driver, or any other professional can use JobIA.
 
-## Vision
+## Product vision
 
-JobIA turns job searching from a manual process into a personalized, intelligent workflow:
+JobIA turns employment discovery into a personalized workflow:
 
-**Create profile → define goals → discover opportunities → match → prioritize → alert → prepare application → user approves → apply.**
+**Create profile → describe what you can do → define where/how you want to work → search → match → prioritize → alert → prepare → user approves → apply.**
 
-JobIA is not intended to replace the worker. It assists the worker, explains why an opportunity matches, prepares materials, and keeps the final decision and authorization with the user.
+The product adapts the search to the individual instead of assuming that every worker should search for the same job categories.
 
-## Relationship with Bitey Trainer
+## JobIA and Bitey Trainer
 
-JobIA is the user-facing product. **Bitey Trainer is the reusable intelligence engine.**
+These are related but different products/modules:
 
-Bitey Trainer provides:
+- **JobIA** — the future mobile application used by workers.
+- **Bitey Trainer** — the employment/AI-training intelligence module inside the broader Bitey IA/Supracerebro ecosystem.
+- **Bitey IA / Supracerebro** — the broader intelligence and orchestration layer.
 
-- Opportunity discovery and normalization.
-- Duplicate and low-quality opportunity filtering.
-- Skill and language matching.
-- Remote / hybrid / onsite classification.
-- Human-only, agent-allowed, and hybrid workflow classification.
-- Match scoring and explanations.
-- CV and application preparation.
+JobIA does **not** duplicate Bitey Trainer. JobIA consumes Bitey Trainer capabilities through a secure backend/API.
+
+While Bitey Trainer is being developed and tested, its real-world capabilities should continuously become the validated intelligence foundation that JobIA will later expose as a mobile product.
+
+## Development relationship
+
+```text
+                 BITEY IA / SUPRACEREBRO
+                          |
+                          v
+                   BITEY TRAINER
+              employment intelligence
+                          |
+             +------------+------------+
+             |                         |
+             v                         v
+      Real-world tests             Future API
+             |                         |
+             +------------+------------+
+                          v
+                        JOBIA
+                   mobile application
+                          |
+                 +--------+--------+
+                 |        |        |
+                 v        v        v
+              Android    iOS      Web (future)
+```
+
+The development algorithm is intentionally incremental:
+
+1. Implement a capability in Bitey Trainer.
+2. Test it against real opportunities and realistic worker profiles.
+3. Measure false positives, false negatives, language mismatches, duplicate jobs, and unsuitable recommendations.
+4. Improve the matching/ranking rules.
+5. Define the capability as a reusable contract.
+6. Expose the validated capability through the JobIA API when stable.
+7. Integrate it into the JobIA mobile experience.
+8. Repeat the cycle as new capabilities are developed.
+
+This means **Bitey Trainer is the laboratory and intelligence engine; JobIA is the product interface for workers.**
+
+## Universal worker profile
+
+JobIA must not be designed only for people with technical careers.
+
+A worker may create a profile using:
+
+- Name and professional identity.
+- Location and preferred work area.
+- Remote, hybrid, or onsite preference.
+- Skills and practical abilities.
+- Formal education and certifications.
+- Work experience.
+- Languages and proficiency.
+- Availability and desired schedule.
+- Employment type.
+- Salary/rate expectations.
+- Preferred industries and job categories.
+- CV/resume, if the user chooses to provide one.
+- A natural-language description of what the person knows how to do.
+
+A person does not need to know the professional terminology used by job boards. They can explain their abilities in ordinary language and JobIA can transform that information into structured matching attributes.
+
+### Example worker profiles
+
+**Accountant** — accounting, Excel, financial records, bookkeeping, administrative work.
+
+**Economics graduate** — data analysis, research, Excel, reporting, economics.
+
+**Construction worker** — masonry, construction assistance, finishing, physical work, local availability.
+
+**IT professional** — programming, networks, technical support, AI tools, data and cloud.
+
+The matching engine should discover transferable skills instead of rejecting a worker because their job title does not exactly match the title of an opportunity.
+
+## Work preferences
+
+During onboarding JobIA should ask where and how the person wants to work:
+
+- Remote.
+- Hybrid.
+- Onsite.
+- Country.
+- State/province.
+- City.
+- Maximum commuting distance when relevant.
+- Working hours.
+- Full-time/part-time/freelance/contract.
+- Minimum compensation.
+
+These preferences become matching constraints rather than merely profile text.
+
+## Opportunity intelligence
+
+Bitey Trainer should progressively provide JobIA with:
+
+- Opportunity discovery.
+- Source normalization.
+- Duplicate detection.
+- Stale/closed opportunity detection when possible.
+- Skill matching.
+- Transferable-skill matching.
+- Language matching.
+- Location matching.
+- Remote/hybrid/onsite classification.
+- Compensation analysis.
+- Experience-level analysis.
+- Human-only / agent-allowed / hybrid classification.
+- Match scoring.
+- Explanation of strengths and gaps.
 - Opportunity prioritization.
-- User feedback and learning signals.
-- Notification and reporting workflows.
+- User feedback signals.
+- Notifications and reports.
 
-JobIA should consume these capabilities through a secure API rather than duplicating the intelligence layer inside the mobile application.
+## Three execution modes
 
-## Planned architecture
+### HUMAN
+The opportunity requires a human worker. JobIA assists with discovery, analysis, preparation, and tracking. The user remains the worker and final decision maker.
+
+### BITEY
+The opportunity explicitly permits an agent, service provider, or automated workflow, and the applicable terms allow Bitey to perform the work. Bitey can execute authorized work through the backend.
+
+### HYBRID
+Bitey performs permitted automation, preparation, research, drafting, testing, or pre-evaluation while the human performs required judgment, validation, identity, language, physical action, or approval.
+
+JobIA and Bitey Trainer must never misrepresent an AI agent as a human or bypass a platform's rules.
+
+## Core mobile experience
+
+### Onboarding
+
+1. Create account.
+2. Enter name and basic professional information.
+3. Select or describe skills.
+4. Add education and experience.
+5. Add languages.
+6. Choose location.
+7. Choose remote/hybrid/onsite preferences.
+8. Set schedule and compensation expectations.
+9. Upload a CV if desired.
+10. Review the generated worker profile.
+
+### Daily experience
+
+The user opens JobIA and sees prioritized opportunities such as:
+
+> **AI Response Evaluator — 91% match**
+>
+> Remote · English intermediate · $18–25/hour
+>
+> Why it matches: writing, QA, digital tools, evaluation experience.
+>
+> [View] [Save] [Prepare application]
+
+The explanation is as important as the score. JobIA should tell the worker **why** an opportunity is recommended and what could prevent a successful application.
+
+## Application assistance
+
+When allowed by the source/platform, JobIA may prepare:
+
+- Tailored CV content.
+- Cover letters.
+- Freelance proposals.
+- Application answers.
+- Interview preparation.
+- Skills-gap explanations.
+
+The default workflow is **prepare → user reviews → user authorizes**. Automatic submission must never bypass identity, consent, platform requirements, assessments, or other human-only obligations.
+
+## Personalization loop
+
+JobIA should learn from explicit user feedback:
+
+```text
+Opportunity found
+      |
+      v
+User views
+      |
+ +----+----+
+ |         |
+Accept   Reject
+ |         |
+ +----+----+
+      |
+      v
+Preference signal
+      |
+      v
+Better future ranking
+```
+
+Learning must use privacy controls and must not expose another user's personal information.
+
+## Architecture
 
 ```text
 Google Play / App Store
           |
           v
        JobIA App
-   Expo / React Native
+    Expo / React Native
           |
-       HTTPS API
+        HTTPS
           |
           v
-      JobIA Backend
+      JobIA API
           |
           v
      Bitey Trainer
@@ -51,102 +235,84 @@ Google Play / App Store
           v
       Supracerebro
           |
-          +---- AI providers / routing
+          +---- controlled AI/provider routing
           |
           v
-        Supabase
+       Supabase
 ```
 
-## User profile
+The mobile application must remain lightweight. Provider credentials, private database keys, matching logic, and sensitive integrations belong on the backend.
 
-During onboarding, JobIA will collect only information needed to personalize employment discovery, including:
+## Data model
 
-- Name and professional identity.
-- Location and preferred work area.
-- Remote, hybrid, or onsite preference.
-- Skills and experience.
-- Languages and proficiency.
-- Education and certifications.
-- Employment type and availability.
-- Salary/rate expectations.
-- Preferred job categories.
-- CV/resume, when the user chooses to provide it.
+The initial JobIA data layer is designed around concepts such as:
 
-The profile is transformed into structured matching data by the backend.
+- `jobia_profiles`
+- `jobia_preferences`
+- `jobia_opportunities`
+- `jobia_matches`
+- `jobia_applications`
+- `jobia_alerts`
+- `jobia_feedback`
 
-## Opportunity modes
+The schema should evolve from validated Bitey Trainer requirements rather than prematurely duplicating trainer tables.
 
-JobIA supports three conceptual modes:
+## Privacy and security
 
-### HUMAN
-The opportunity explicitly requires a human worker. JobIA assists with discovery, analysis, preparation, and human review.
-
-### BITEY
-The opportunity explicitly permits an agent, service provider, or automated workflow where the contractual terms allow it. Bitey may perform authorized work through its backend capabilities.
-
-### HYBRID
-Bitey prepares, automates, or pre-evaluates the work and the human performs required judgment, validation, identity, language, or approval steps.
-
-JobIA must never misrepresent an AI agent as a human worker or bypass a platform's rules.
-
-## Core features
-
-### Phase 1 — Intelligence engine
-- Personal worker profile.
-- Opportunity ingestion.
-- Matching and scoring.
-- Human/Bitey/Hybrid classification.
-- Opportunity reports.
-- Notifications.
-- Feedback tracking.
-
-### Phase 2 — Mobile MVP
-- Account creation.
-- Worker onboarding.
-- Skills and preferences.
-- Opportunity feed.
-- Match score.
-- Opportunity details.
-- Favorites.
-- Alerts.
-- Application preparation.
-
-### Phase 3 — Advanced assistant
-- CV adaptation.
-- Cover letters and proposals.
-- Interview preparation.
-- Application tracking.
-- Personalized search rules.
-- Learning from accepted/rejected opportunities.
-
-## Data and privacy
-
-Sensitive credentials and provider secrets must remain on the backend. The mobile app must never contain private AI-provider keys, database service-role keys, or platform credentials.
-
-User data must be isolated per account. Any aggregate learning must use appropriate privacy controls and must not expose another user's personal information.
-
-## Current status
-
-JobIA is a **product foundation repository**. The immediate development focus remains on Bitey Trainer and its real-world testing. The mobile application should be developed only after the matching, opportunity discovery, reporting, and alerting workflows are sufficiently validated.
+JobIA will handle potentially sensitive professional and personal information. The design must include account-level data isolation, Row Level Security where applicable, no provider secret keys in the mobile application, no Supabase service-role keys in the mobile application, explicit user control over CV/profile data, secure API authentication, clear consent for notifications/application assistance, and privacy-preserving aggregate learning.
 
 ## Roadmap
 
-1. Validate Bitey Trainer with real opportunities.
-2. Stabilize the worker-profile and matching schemas.
-3. Expose a secure API for JobIA.
-4. Build the Expo/React Native mobile MVP.
-5. Test Android APK builds on physical devices.
-6. Prepare Android App Bundle (AAB) for Google Play.
-7. Add iOS support after the Android workflow is stable.
-8. Introduce paid/premium features only after the core product proves useful.
+### Phase 1 — Bitey Trainer validation
+- Build and test employment intelligence.
+- Test with real profiles.
+- Test multiple occupations and skill sets.
+- Measure match quality.
+- Improve reports and alerts.
+
+### Phase 2 — JobIA service layer
+- Define stable API contracts.
+- Connect validated Bitey Trainer capabilities.
+- Support multiple worker profiles.
+- Add authentication and account isolation.
+
+### Phase 3 — JobIA mobile MVP
+- Expo/React Native application.
+- Android APK testing.
+- Worker onboarding.
+- Profile management.
+- Opportunity feed.
+- Matching.
+- Alerts.
+- Saved opportunities.
+
+### Phase 4 — Store release
+- Production Android App Bundle (AAB).
+- Google Play testing tracks.
+- Production release.
+- iOS build after Android workflow is stable.
+
+### Phase 5 — Advanced product
+- CV optimization.
+- Application assistant.
+- Interview preparation.
+- Personalized search agents.
+- Premium features.
+- Business/API offering where appropriate.
+
+## Current status
+
+JobIA is currently a **product foundation and future mobile application**. The immediate priority is to develop and validate Bitey Trainer. Every validated capability should be designed so that it can later be consumed by JobIA rather than becoming isolated trainer-only code.
 
 ## Ecosystem
 
-- **JobIA** — user-facing employment discovery product.
-- **Bitey Trainer** — employment and AI-training intelligence engine.
-- **Bitey IA / Supracerebro** — broader AI intelligence and orchestration layer.
-- **Supabase** — data, authentication, and persistence layer.
+- **JobIA** — user-facing employment application for workers of any profession.
+- **Bitey Trainer** — intelligence module for employment discovery, matching, AI training/evaluation, and human-in-the-loop workflows.
+- **Bitey IA / Supracerebro** — broader AI orchestration and intelligence platform.
+- **Supabase** — authentication, data, persistence, and backend services.
 
----
+## Guiding principle
 
-JobIA is part of the BiteFixes/Bitey ecosystem and is designed to evolve from the validated Bitey Trainer prototype into a production mobile product.
+> **Bitey Trainer builds and validates the intelligence. JobIA puts that intelligence in the hands of workers.**
+
+JobIA is designed to help people find work based on what they can actually do, not only on the job title they already have.
