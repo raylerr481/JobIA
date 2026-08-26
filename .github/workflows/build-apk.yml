@@ -16,15 +16,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: npm install
+
+      - name: Validate Expo project
+        run: npx expo-doctor@latest
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: false
+          eas-cache: false
 
       - name: Build Android APK
         run: eas build --platform android --profile production-apk --non-interactive --wait
