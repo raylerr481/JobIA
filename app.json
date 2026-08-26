@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "JobIA",
+    "slug": "jobia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "jobia",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.svg",
+    "android": {
+      "package": "com.raylerr481.jobia",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.svg",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "plugins": ["expo-router"]
+  }
+}
