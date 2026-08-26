@@ -6,11 +6,11 @@
     "orientation": "portrait",
     "scheme": "jobia",
     "userInterfaceStyle": "light",
-    "icon": "./assets/icon.svg",
+    "icon": "./assets/icon.png",
     "android": {
       "package": "com.raylerr481.jobia",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.svg",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFFFFF"
       }
     },
