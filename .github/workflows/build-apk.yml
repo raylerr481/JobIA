@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: npm install
@@ -27,7 +27,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK
-        run: eas build --platform android --profile production-apk --non-interactive
+        run: eas build --platform android --profile production-apk --non-interactive --wait
 
       - name: Save build metadata
         run: eas build:list --platform android --limit 1 --json > jobia-build.json
