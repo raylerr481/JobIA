@@ -1,105 +1,104 @@
 # JobIA
 
-**Agente IA de empleo, trabajo y oportunidades profesionales.**
+**Backend y plataforma de inteligencia para empleo y oportunidades profesionales.**
 
-JobIA is a product in active development. It keeps its cross-platform application code here, while the dedicated browser frontend lives in **[JobIA-Web](https://github.com/raylerr481/JobIA-Web)**. Both clients consume the same secure JobIA API contract.
+JobIA es el núcleo backend del producto JobIA. Este repositorio **no es el frontend web ni la aplicación Android**: contiene la API, la lógica de negocio y los servicios que utilizan los clientes oficiales.
 
-## Relationship with Bitey IA
+## Ecosistema JobIA
 
-Bitey IA is the general-purpose **Supracerebro**. JobIA is a specialized product within its ecosystem.
+JobIA está organizado en tres repositorios independientes:
 
 ```text
-BITEY IA / SUPRACEREBRO
-          │
-        JobIA
-          │
-   Bitey Trainer
-   (internal motor)
-          │
-   ┌──────┴──────┐
- JobIA App    JobIA Web
+                    JOBIA
+              Backend / API / IA
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+     JobIA-Web            JobIA App
+    Frontend web        App Android
 ```
 
-**Bitey Trainer is not an app. It is the intelligence/training engine used by JobIA.** JobIA consumes validated Trainer capabilities through secure backend contracts instead of duplicating the intelligence engine.
+- **JobIA** → backend, API, lógica y servicios de inteligencia.
+- **JobIA-Web** → frontend web que consume la API de JobIA.
+- **JobIA App** → aplicación Android instalable que consume la API de JobIA.
 
-## Main capabilities
+Los clientes no duplican el backend. La lógica sensible y las credenciales de proveedores permanecen del lado servidor.
 
-- Search AI and IT jobs.
-- Search remote, hybrid and onsite work.
-- Search legitimate AI-training/evaluation and human-in-the-loop opportunities.
-- Save opportunities.
-- Rank and explain matches.
-- Notify by email and, when configured and consented, WhatsApp/mobile channels.
-- Prepare tailored CV/resume content.
-- Prepare cover letters, proposals and application answers.
-- Analyze compensation/salary.
-- Track applications and user decisions.
+## Responsabilidades del backend
 
-## Clients
+El backend proporciona los contratos y servicios necesarios para:
 
-### JobIA App
+- Descubrir y normalizar oportunidades profesionales.
+- Buscar empleos y trabajos remotos, híbridos y presenciales.
+- Clasificar oportunidades de IA, evaluación y human-in-the-loop.
+- Analizar perfiles, habilidades y habilidades transferibles.
+- Calcular compatibilidad y ranking de oportunidades.
+- Explicar por qué una oportunidad coincide con un perfil.
+- Analizar compensación y salario.
+- Preparar CV/resumen profesional, cartas y respuestas de aplicación.
+- Gestionar oportunidades guardadas, aplicaciones y preferencias.
+- Gestionar alertas y canales de notificación cuando estén implementados y autorizados.
+- Integrar memoria, conocimiento y datos mediante los servicios configurados del backend.
 
-The Expo application remains the mobile/native client in this repository and can target Android and web through Expo when needed.
+## Flujo de JobIA
 
-### JobIA Web
+```text
+Descubrir → Normalizar → Analizar → Hacer match → Explicar
+                     ↓
+                  Preparar
+                     ↓
+             Usuario revisa
+                     ↓
+             Usuario autoriza
+```
 
-The dedicated browser experience is maintained in [raylerr481/JobIA-Web](https://github.com/raylerr481/JobIA-Web). It provides a responsive desktop/mobile web dashboard, opportunity search, profile, alerts and application tracking while consuming the JobIA API.
-
-## Professional profile
-
-JobIA is multi-profession. Profiles can contain profession, skills, education, certifications, experience, languages, location, availability, preferred modality, compensation and CV information supplied by the user.
+JobIA no debe asumir el envío automático de candidaturas ni saltarse consentimiento, verificaciones de identidad, evaluaciones o reglas de plataformas externas.
 
 ## Bitey Trainer
 
-Trainer develops and validates the intelligence used by JobIA, including opportunity discovery/normalization, skill and transferable-skill matching, ranking, compensation analysis, AI-work classification, application preparation and feedback-driven improvement.
+**Bitey Trainer es un motor interno de inteligencia y entrenamiento utilizado por JobIA; no es una aplicación independiente.**
 
-Trainer supports HUMAN, BITEY and HYBRID workflows. It must never misrepresent an AI as a human or bypass platform, identity, assessment or contractual rules.
+Trainer desarrolla y valida capacidades relacionadas con descubrimiento, normalización, matching, ranking, análisis de compensación, clasificación de trabajos de IA, preparación de aplicaciones y mejora mediante feedback.
 
-## Application workflow
+Los clientes consumen capacidades del backend mediante contratos de API; no necesitan contener las credenciales ni la implementación sensible de estos servicios.
 
-Default flow is:
+## Relación con Bitey IA
 
-```text
-Discover → Match → Explain → Prepare → User reviews → User authorizes
-```
+Bitey IA es una plataforma de inteligencia más amplia. JobIA es un producto especializado para empleo y oportunidades profesionales dentro de ese ecosistema.
 
-Automatic submission is never assumed and must not bypass consent or platform requirements.
+La separación técnica es deliberada: **JobIA sigue siendo un producto autónomo con su propio backend y sus propios clientes**.
 
-## Architecture
+## Clientes oficiales
 
-```text
-                 BITEY IA
-                    │
-                  JobIA
-                    │
-              Bitey Trainer
-                    │
-             ┌──────┴──────┐
-             │             │
-         JobIA App      JobIA Web
-             │             │
-             └──── HTTPS ──┘
-                    │
-                 JobIA API
-                    │
-          Supabase / integrations
-```
+### JobIA-Web
 
-Provider credentials and sensitive matching/integration logic remain server-side.
+Frontend web oficial mantenido en [`raylerr481/JobIA-Web`](https://github.com/raylerr481/JobIA-Web). Consume la API de JobIA mediante HTTPS/JSON.
 
-## Alerts
+### JobIA App
 
-Users control search and alert frequency. Opportunities that pass configured thresholds may generate email, WhatsApp or mobile notifications where the channel is implemented and consented.
+Aplicación Android instalable de JobIA. Consume los mismos contratos de backend y está separada del frontend web.
 
-## Privacy and security
+> El código Android debe permanecer en su repositorio propio. No se debe convertir este repositorio backend en una aplicación móvil.
 
-- Account-level isolation.
-- RLS/authorization where applicable.
-- No provider secrets in the app or browser.
-- No Supabase service-role keys in clients.
-- Explicit control of CV/profile data.
-- Human approval for sensitive application actions.
+## Seguridad
 
-## Guiding principle
+- Las claves privadas de proveedores permanecen en el servidor.
+- Nunca exponer claves `service_role` de Supabase a clientes.
+- Mantener autorización y aislamiento de datos por cuenta.
+- Proteger CV, perfil y datos personales.
+- Validar entradas y respuestas de integraciones externas.
+- Aplicar consentimiento explícito para acciones sensibles.
 
-> **Bitey Trainer builds and validates the intelligence; JobIA puts that intelligence in the hands of workers. Bitey IA remains the general Supracerebro.**
+## Datos e integraciones
+
+JobIA puede utilizar Supabase y otras integraciones configuradas para persistencia, memoria, conocimiento y servicios externos. Las integraciones deben respetar la separación entre backend y clientes.
+
+No se requiere una base de datos gráfica separada para definir la arquitectura de JobIA.
+
+## Desarrollo
+
+La implementación y los comandos concretos dependen de la estructura actual del backend. Antes de añadir una integración nueva, debe mantenerse el contrato público consumido por **JobIA-Web** y **JobIA App**.
+
+## Principio de arquitectura
+
+> **JobIA es el backend y núcleo de servicios; JobIA-Web es el frontend web; JobIA App es la aplicación Android. Tres repositorios, un mismo producto y una única plataforma backend de JobIA.**
