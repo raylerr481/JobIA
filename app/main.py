@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import os
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 API_CONTRACT = "jobia-v1"
 TRAINER_MODULE = "bitey-trainer"
 GENERAL_MODULE = "bitey-web"
+DB_PATH = Path(os.getenv("JOBIA_DB_PATH", "data/jobia.sqlite3"))
 
 app = FastAPI(
     title="JobIA Backend",
@@ -60,15 +63,58 @@ JOBS: list[Job] = [
     Job(id="jobia-3", title="Analista de datos junior", company="JobIA Network", location="Brasil", modality="Híbrido", kind="Contrato", match=84, summary="Análisis, limpieza e interpretación de datos para apoyar decisiones de negocio.", skills=["Python", "SQL", "Excel", "Datos"]),
 ]
 
-# Temporary process-local storage. Production persistence is intentionally kept
-# behind the product contract so a database can be introduced without changing
-# JobIA-Web or JobIA-app API semantics.
-PROFILES: dict[str, Profile] = {}
+
+def get_db() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS profiles (
+            email TEXT PRIMARY KEY,
+            profession TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            ai_opportunities INTEGER NOT NULL,
+            skills TEXT NOT NULL
+        )
+        """
+    )
+    return connection
+
+
+def profile_from_row(row: sqlite3.Row) -> Profile:
+    import json
+
+    try:
+        skills = json.loads(row["skills"])
+        if not isinstance(skills, list):
+            skills = []
+    except (TypeError, ValueError):
+        skills = []
+    return Profile(
+        email=row["email"],
+        profession=row["profession"],
+        mode=row["mode"],
+        aiOpportunities=bool(row["ai_opportunities"]),
+        skills=[str(skill) for skill in skills],
+    )
+
+
+@app.on_event("startup")
+def initialize_database() -> None:
+    connection = get_db()
+    connection.close()
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "service": "jobia", "version": APP_VERSION, "contract": API_CONTRACT}
+    return {
+        "status": "ok",
+        "service": "jobia",
+        "version": APP_VERSION,
+        "contract": API_CONTRACT,
+        "persistence": "sqlite",
+    }
 
 
 @app.get("/api/v1/capabilities")
@@ -168,14 +214,49 @@ def get_job(job_id: str) -> Job:
 
 @app.get("/profile", response_model=Profile)
 def get_profile(email: str = Query(default="")) -> Profile:
-    return PROFILES.get(email, Profile(email=email))
+    normalized_email = email.strip().lower()
+    if not normalized_email:
+        return Profile()
+    connection = get_db()
+    try:
+        row = connection.execute("SELECT * FROM profiles WHERE email = ?", (normalized_email,)).fetchone()
+        return profile_from_row(row) if row else Profile(email=normalized_email)
+    finally:
+        connection.close()
 
 
 @app.put("/profile", response_model=Profile)
 def save_profile(profile: Profile) -> Profile:
-    if profile.email:
-        PROFILES[profile.email] = profile
-    return profile
+    normalized_email = profile.email.strip().lower()
+    if not normalized_email:
+        raise HTTPException(status_code=400, detail="email is required")
+
+    import json
+
+    connection = get_db()
+    try:
+        connection.execute(
+            """
+            INSERT INTO profiles (email, profession, mode, ai_opportunities, skills)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                profession = excluded.profession,
+                mode = excluded.mode,
+                ai_opportunities = excluded.ai_opportunities,
+                skills = excluded.skills
+            """,
+            (
+                normalized_email,
+                profile.profession,
+                profile.mode,
+                int(profile.aiOpportunities),
+                json.dumps(profile.skills, ensure_ascii=False),
+            ),
+        )
+        connection.commit()
+        return profile.model_copy(update={"email": normalized_email})
+    finally:
+        connection.close()
 
 
 @app.get("/api/v1/module/manifest")
@@ -189,4 +270,5 @@ def manifest() -> dict[str, Any]:
         "trainer": TRAINER_MODULE,
         "contract": API_CONTRACT,
         "integration": "bidirectional-with-bitey-web",
+        "persistence": "sqlite",
     }
