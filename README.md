@@ -1,117 +1,110 @@
 # JobIA
 
-**Módulo backend especializado de empleo de Bitey IA Web.**
+**Módulo especializado de empleo y trabajo de Bitey IA.**
 
-JobIA es la capa de servicios de empleo dentro del ecosistema de **Bitey IA Web**. Expone una API estable para los clientes JobIA-Web y JobIA-app, mientras que la inteligencia general, memoria cognitiva, orquestación de modelos y políticas globales pertenecen a Bitey IA Web.
+JobIA no es una IA independiente: es el módulo de Bitey IA especializado en oportunidades profesionales, perfiles, matching, aplicaciones y alertas. Su backend implementa el contrato `jobia-v1` que consumen sus canales web y Android.
 
-## Arquitectura del ecosistema
+## Arquitectura
 
 ```text
-                         BITEY IA WEB
-                  General / Integral AI
+                         BITEY IA
+                    inteligencia general
                            │
-              Cognitive Core / Policies
-                           │
-                  ┌────────▼────────┐
-                  │      JobIA       │
-                  │ módulo backend   │
-                  │ empleo / matching│
-                  └────────┬─────────┘
-                           │
-                    HTTPS / JSON
-                 ┌─────────┴─────────┐
-                 │                   │
-            JobIA-Web           JobIA-app
-          Frontend web       Android instalable
+             ┌─────────────┼─────────────┐
+             │             │             │
+          JobIA         Bitey SBT     otros módulos
+       empleo/trabajo      trading
+             │
+       ┌─────┴─────┐
+       │           │
+   JobIA-Web    JobIA-app
+      Web         Android
+     canal         canal
+
+Bitey IA Web = canal web de Bitey IA
 ```
 
 ### Responsabilidad de cada repositorio
 
-- **`bitey-web`** → plataforma general de Bitey IA, cerebro/orquestación, herramientas, memoria y políticas.
-- **`JobIA`** → backend especializado de empleo y contrato API de JobIA.
-- **`JobIA-Web`** → frontend web; consume exclusivamente la API de JobIA.
-- **`JobIA-app`** → aplicación Android; consume la misma API de JobIA.
-- **`bitey-trainer`** → motor interno de entrenamiento/validación de inteligencia para JobIA; no es una aplicación ni un cliente.
+- **`bitey-web`** → canal web de Bitey IA; presenta y coordina las capacidades generales del sistema.
+- **`JobIA`** → módulo/backend especializado de empleo de Bitey IA y contrato API `jobia-v1`.
+- **`JobIA-Web`** → canal web de JobIA; consume la API de JobIA.
+- **`JobIA-app`** → canal Android de JobIA; consume la misma API.
+- **`bitey-trainer`** → capacidad interna de Bitey IA para entrenamiento, evaluación y validación; no es un cliente ni un segundo cerebro.
 
-JobIA es, por tanto, **un módulo de Bitey IA Web**, pero mantiene un backend especializado para que los clientes web y Android compartan el mismo contrato.
+JobIA puede recibir solicitudes delegadas desde Bitey IA cuando una tarea requiere especialización laboral. También puede solicitar capacidades generales de Bitey IA mediante APIs/contratos controlados cuando sean necesarias.
 
 ## Contrato API JobIA v1
 
-Endpoints base actuales:
+Endpoints principales actuales:
 
 - `GET /health`
 - `GET /api/v1/capabilities`
 - `GET /api/v1/module/status`
 - `GET /api/v1/module/manifest`
 - `GET /api/v1/cognitive/status`
+- `GET /api/v1/contract`
 - `GET /jobs`
 - `GET /jobs/{job_id}`
 - `GET /profile?email=...`
 - `PUT /profile`
+- `POST /applications/prepare`
 
-`/jobs` admite `q`, `modality`, `location` y `kind` como filtros. El contrato puede crecer sin romper los clientes existentes.
+`/jobs` admite filtros como `q`, `modality`, `location` y `kind`. El contrato es versionado para permitir evolución sin acoplar los canales a implementaciones internas.
 
-## Relación con Bitey IA Web
-
-JobIA no sustituye al cerebro de Bitey. El reparto es deliberado:
+## Responsabilidades de JobIA
 
 ```text
-Bitey IA Web
-  ├── entiende contexto y objetivo
-  ├── decide qué capacidad necesita
-  ├── aplica políticas y permisos
-  └── coordina modelos/herramientas
-          │
-          ▼
-       JobIA
-  ├── oportunidades
-  ├── normalización
-  ├── matching
-  ├── ranking
-  ├── perfiles
-  ├── aplicaciones
-  └── alertas
+JobIA
+ ├── oportunidades
+ ├── normalización
+ ├── matching y ranking
+ ├── explicación de compatibilidad
+ ├── perfiles profesionales
+ ├── preparación de aplicaciones
+ └── alertas
 ```
 
-La futura integración cognitiva debe usar contratos versionados, nunca acoplar los clientes a implementaciones internas de Bitey.
+El backend es la autoridad para la inteligencia especializada de empleo. Los canales no deben duplicar esa lógica en producción.
 
 ## Bitey Trainer
 
-`bitey-trainer` desarrolla y valida capacidades de descubrimiento, matching, ranking, evaluación, compensación y preparación de aplicaciones. Las capacidades validadas se publican hacia JobIA mediante contratos seguros.
+`bitey-trainer` entrena, evalúa y valida capacidades que pueden ser utilizadas por JobIA. El flujo es:
 
 ```text
-Bitey Trainer → valida inteligencia → JobIA → clientes
+Definir → Implementar → Probar → Medir → Mejorar
+        → Validar → Publicar capacidad → JobIA consume
 ```
 
-Trainer no controla la interfaz web ni la aplicación Android y no debe convertirse en un segundo cerebro.
+Trainer no controla directamente las interfaces y no crea un backend público paralelo.
 
-## Clientes
+## Canales
 
 ### JobIA-Web
 
-El frontend web oficial obtiene la URL del backend mediante `VITE_JOBIA_API_URL`. No contiene secretos ni lógica privada del servidor.
+Canal web oficial de JobIA. Obtiene la URL del backend mediante `VITE_JOBIA_API_URL` y no contiene secretos.
 
 ### JobIA-app
 
-La aplicación Android utiliza la misma API JobIA. No mantiene un backend paralelo ni duplica la lógica de matching.
+Canal Android oficial de JobIA. Utiliza la misma API `jobia-v1` y no mantiene un backend paralelo.
 
 ## Seguridad
 
 - Credenciales de proveedores únicamente en backend.
 - Ninguna clave `service_role` de Supabase en clientes.
-- Datos de perfil y aplicaciones protegidos por autenticación/autorización.
+- Datos protegidos por autenticación/autorización.
 - Acciones externas sensibles requieren consentimiento.
-- El resultado de modelos externos se considera no confiable hasta ser evaluado por la política de Bitey.
+- Los resultados de modelos externos deben evaluarse antes de convertirse en acciones.
 
 ## Coste e IA
 
-El módulo no exige Gemini ni un proveedor de pago concreto. La selección de modelos pertenece a las políticas de Bitey IA Web y debe respetar el modo económico configurado, incluyendo `free_only` cuando esté activo.
+El módulo sigue un enfoque free-first. No requiere Gemini ni un proveedor de pago concreto. La selección de modelos y capacidades generales corresponde a las políticas de Bitey IA.
 
 ## Desarrollo
 
 ```bash
 python -m venv .venv
-# Windows: .\.venv\Scripts\Activate.ps1
+# Windows: .\\.venv\\Scripts\\Activate.ps1
 # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
@@ -119,4 +112,4 @@ uvicorn app.main:app --reload
 
 ## Principio
 
-> **Bitey IA Web es el sistema general; JobIA es su módulo especializado de empleo; JobIA es el backend compartido; JobIA-Web y JobIA-app son sus dos clientes; Bitey Trainer valida la inteligencia que JobIA utiliza.**
+> **Bitey IA es el sistema general. JobIA es su módulo especializado de empleo. Bitey IA Web es el canal web de Bitey IA. JobIA-Web y JobIA-app son los canales web y Android de JobIA. Bitey Trainer entrena y valida capacidades de Bitey IA.**
