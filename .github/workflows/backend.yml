@@ -16,4 +16,34 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
       - run: python -m compileall app
-      - run: python -c "from app.main import app; assert app.title == 'JobIA Backend'"
+      - name: Import application
+        run: python -c "from app.main import app; assert app.title == 'JobIA Backend'"
+      - name: Smoke test API and persistence
+        run: |
+          python - <<'PY'
+          import os
+          import tempfile
+          from fastapi.testclient import TestClient
+
+          with tempfile.TemporaryDirectory() as tmp:
+              os.environ['JOBIA_DB_PATH'] = os.path.join(tmp, 'jobia.sqlite3')
+              from app.main import app
+
+              with TestClient(app) as client:
+                  health = client.get('/health')
+                  assert health.status_code == 200
+                  assert health.json()['persistence'] == 'sqlite'
+
+                  profile = {
+                      'email': 'ci@example.com',
+                      'profession': 'IT',
+                      'mode': 'Remoto',
+                      'aiOpportunities': True,
+                      'skills': ['Python', 'Redes']
+                  }
+                  saved = client.put('/profile', json=profile)
+                  assert saved.status_code == 200
+                  loaded = client.get('/profile?email=ci%40example.com')
+                  assert loaded.status_code == 200
+                  assert loaded.json()['skills'] == ['Python', 'Redes']
+          PY
