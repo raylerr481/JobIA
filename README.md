@@ -1,42 +1,61 @@
 # JobIA
 
-**Módulo especializado de empleo y trabajo de Bitey IA.**
+**JobIA is the specialized employment and work module of Bitey IA.**
 
-JobIA no es una IA independiente: es el módulo de Bitey IA especializado en oportunidades profesionales, perfiles, matching, aplicaciones y alertas. Su backend implementa el contrato `jobia-v1` que consumen sus canales web y Android.
+JobIA is not an independent AI system. It is the employment specialization of Bitey IA, covering professional opportunities, profiles, matching, applications, and alerts. Its backend exposes the versioned `jobia-v1` contract consumed by its web and Android channels.
 
-## Arquitectura
+## Language and naming standard
+
+All repository documentation, API contracts, backend identifiers, variable names, model fields, endpoint parameters, configuration keys, database-facing names, and code references must use **English**.
+
+This is a technical naming standard, not a requirement that the user interface support only English. User-facing content may be localized separately.
+
+Examples:
+
+- `job_id`, not `id_puesto`;
+- `company`, not `empresa`;
+- `location`, not `ubicacion`;
+- `modality`, not `modalidad`;
+- `skills`, not `habilidades`;
+- `match`, not `coincidencia`;
+- `application`, not `postulacion`;
+- `VITE_JOBIA_API_URL` and `EXPO_PUBLIC_JOBIA_API_URL` remain English technical identifiers.
+
+Do not introduce Spanish variable names, JSON keys, endpoint parameters, database fields, or internal API identifiers in new code.
+
+## Architecture
 
 ```text
                          BITEY IA
-                    inteligencia general
+                    general intelligence
                            │
              ┌─────────────┼─────────────┐
              │             │             │
-          JobIA         Bitey SBT     otros módulos
-       empleo/trabajo      trading
+          JobIA         Bitey SBT     other modules
+       employment/work     trading
              │
        ┌─────┴─────┐
        │           │
    JobIA-Web    JobIA-app
       Web         Android
-     canal         canal
+    channel       channel
 
-Bitey IA Web = canal web de Bitey IA
+Bitey IA Web = web channel of Bitey IA
 ```
 
-### Responsabilidad de cada repositorio
+### Repository responsibilities
 
-- **`bitey-web`** → canal web de Bitey IA; presenta y coordina las capacidades generales del sistema.
-- **`JobIA`** → módulo/backend especializado de empleo de Bitey IA y contrato API `jobia-v1`.
-- **`JobIA-Web`** → canal web de JobIA; consume la API de JobIA.
-- **`JobIA-app`** → canal Android de JobIA; consume la misma API.
-- **`bitey-trainer`** → capacidad interna de Bitey IA para entrenamiento, evaluación y validación; no es un cliente ni un segundo cerebro.
+- **`bitey-web`** → web channel of Bitey IA.
+- **`JobIA`** → specialized employment/work module and backend API `jobia-v1`.
+- **`JobIA-Web`** → web channel of JobIA; consumes the JobIA API.
+- **`JobIA-app`** → Android channel of JobIA; consumes the same API.
+- **`bitey-trainer`** → internal Bitey IA capability for training, evaluation, and validation; it is not a client or second brain.
 
-JobIA puede recibir solicitudes delegadas desde Bitey IA cuando una tarea requiere especialización laboral. También puede solicitar capacidades generales de Bitey IA mediante APIs/contratos controlados cuando sean necesarias.
+JobIA can receive delegated requests from Bitey IA when employment specialization is required. JobIA can also request general Bitey IA capabilities through controlled APIs/contracts when necessary.
 
-## Contrato API JobIA v1
+## JobIA API v1 contract
 
-Endpoints principales actuales:
+Current primary endpoints:
 
 - `GET /health`
 - `GET /api/v1/capabilities`
@@ -50,57 +69,57 @@ Endpoints principales actuales:
 - `PUT /profile`
 - `POST /applications/prepare`
 
-`/jobs` admite filtros como `q`, `modality`, `location` y `kind`. El contrato es versionado para permitir evolución sin acoplar los canales a implementaciones internas.
+`/jobs` supports filters such as `q`, `modality`, `location`, and `kind`. The contract is versioned so channels can evolve without depending on internal implementation details.
 
-## Responsabilidades de JobIA
+## JobIA responsibilities
 
 ```text
 JobIA
- ├── oportunidades
- ├── normalización
- ├── matching y ranking
- ├── explicación de compatibilidad
- ├── perfiles profesionales
- ├── preparación de aplicaciones
- └── alertas
+ ├── opportunities
+ ├── normalization
+ ├── matching and ranking
+ ├── compatibility explanations
+ ├── professional profiles
+ ├── application preparation
+ └── alerts
 ```
 
-El backend es la autoridad para la inteligencia especializada de empleo. Los canales no deben duplicar esa lógica en producción.
+The backend is the authority for specialized employment intelligence. Channels must not duplicate this intelligence in production.
 
 ## Bitey Trainer
 
-`bitey-trainer` entrena, evalúa y valida capacidades que pueden ser utilizadas por JobIA. El flujo es:
+`bitey-trainer` trains, evaluates, and validates capabilities that can be used by JobIA. The lifecycle is:
 
 ```text
-Definir → Implementar → Probar → Medir → Mejorar
-        → Validar → Publicar capacidad → JobIA consume
+Define → Implement → Test → Measure → Improve
+       → Validate → Publish capability → JobIA consumes
 ```
 
-Trainer no controla directamente las interfaces y no crea un backend público paralelo.
+Trainer does not directly control interfaces and does not create a parallel public backend.
 
-## Canales
+## Channels
 
 ### JobIA-Web
 
-Canal web oficial de JobIA. Obtiene la URL del backend mediante `VITE_JOBIA_API_URL` y no contiene secretos.
+Official web channel of JobIA. It receives the backend URL through `VITE_JOBIA_API_URL` and contains no secrets.
 
 ### JobIA-app
 
-Canal Android oficial de JobIA. Utiliza la misma API `jobia-v1` y no mantiene un backend paralelo.
+Official Android channel of JobIA. It uses the same `jobia-v1` API and does not maintain a parallel backend.
 
-## Seguridad
+## Security
 
-- Credenciales de proveedores únicamente en backend.
-- Ninguna clave `service_role` de Supabase en clientes.
-- Datos protegidos por autenticación/autorización.
-- Acciones externas sensibles requieren consentimiento.
-- Los resultados de modelos externos deben evaluarse antes de convertirse en acciones.
+- Provider credentials exist only on the backend.
+- No Supabase `service_role` key is exposed to clients.
+- Protected data requires authentication/authorization.
+- Sensitive external actions require explicit user consent.
+- External model output must be evaluated before becoming an action.
 
-## Coste e IA
+## Cost and AI policy
 
-El módulo sigue un enfoque free-first. No requiere Gemini ni un proveedor de pago concreto. La selección de modelos y capacidades generales corresponde a las políticas de Bitey IA.
+The module follows a free-first approach. It does not require Gemini or a specific paid provider. Model and general capability selection is governed by Bitey IA policies.
 
-## Desarrollo
+## Development
 
 ```bash
 python -m venv .venv
@@ -110,6 +129,6 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-## Principio
+## Principle
 
-> **Bitey IA es el sistema general. JobIA es su módulo especializado de empleo. Bitey IA Web es el canal web de Bitey IA. JobIA-Web y JobIA-app son los canales web y Android de JobIA. Bitey Trainer entrena y valida capacidades de Bitey IA.**
+> **Bitey IA is the general system. JobIA is its specialized employment/work module. Bitey IA Web is the web channel of Bitey IA. JobIA-Web and JobIA-app are the web and Android channels of JobIA. Bitey Trainer trains and validates Bitey IA capabilities.**
