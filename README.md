@@ -2,7 +2,7 @@
 
 **Agente IA de empleo, trabajo y oportunidades profesionales.**
 
-JobIA is a product in active development and its user-facing application is the **JobIA App**. It helps users discover legitimate employment, freelance and AI-related opportunities matched to their real skills and preferences.
+JobIA is a product in active development. It keeps its cross-platform application code here, while the dedicated browser frontend lives in **[JobIA-Web](https://github.com/raylerr481/JobIA-Web)**. Both clients consume the same secure JobIA API contract.
 
 ## Relationship with Bitey IA
 
@@ -16,7 +16,8 @@ BITEY IA / SUPRACEREBRO
    Bitey Trainer
    (internal motor)
           │
-      JobIA App
+   ┌──────┴──────┐
+ JobIA App    JobIA Web
 ```
 
 **Bitey Trainer is not an app. It is the intelligence/training engine used by JobIA.** JobIA consumes validated Trainer capabilities through secure backend contracts instead of duplicating the intelligence engine.
@@ -33,6 +34,16 @@ BITEY IA / SUPRACEREBRO
 - Prepare cover letters, proposals and application answers.
 - Analyze compensation/salary.
 - Track applications and user decisions.
+
+## Clients
+
+### JobIA App
+
+The Expo application remains the mobile/native client in this repository and can target Android and web through Expo when needed.
+
+### JobIA Web
+
+The dedicated browser experience is maintained in [raylerr481/JobIA-Web](https://github.com/raylerr481/JobIA-Web). It provides a responsive desktop/mobile web dashboard, opportunity search, profile, alerts and application tracking while consuming the JobIA API.
 
 ## Professional profile
 
@@ -57,15 +68,21 @@ Automatic submission is never assumed and must not bypass consent or platform re
 ## Architecture
 
 ```text
-JobIA App
-   ↓ HTTPS
-JobIA API
-   ↓
-Bitey Trainer
-   ↓
-Bitey IA / authorized services
-   ↓
-Supabase and controlled integrations
+                 BITEY IA
+                    │
+                  JobIA
+                    │
+              Bitey Trainer
+                    │
+             ┌──────┴──────┐
+             │             │
+         JobIA App      JobIA Web
+             │             │
+             └──── HTTPS ──┘
+                    │
+                 JobIA API
+                    │
+          Supabase / integrations
 ```
 
 Provider credentials and sensitive matching/integration logic remain server-side.
@@ -78,19 +95,10 @@ Users control search and alert frequency. Opportunities that pass configured thr
 
 - Account-level isolation.
 - RLS/authorization where applicable.
-- No provider secrets in the app.
-- No Supabase service-role keys in the app.
+- No provider secrets in the app or browser.
+- No Supabase service-role keys in clients.
 - Explicit control of CV/profile data.
 - Human approval for sensitive application actions.
-
-## Roadmap
-
-1. Validate Bitey Trainer intelligence.
-2. Stabilize JobIA API contracts.
-3. Complete JobIA Android MVP.
-4. Validate APK on physical devices.
-5. Improve matching, alerts and application assistance.
-6. Expand to additional professions and opportunity sources.
 
 ## Guiding principle
 
