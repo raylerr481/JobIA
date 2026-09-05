@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import os
 from typing import Any
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
+API_CONTRACT = "jobia-v1"
+TRAINER_MODULE = "bitey-trainer"
+GENERAL_MODULE = "bitey-web"
 
 app = FastAPI(
     title="JobIA Backend",
@@ -13,11 +18,16 @@ app = FastAPI(
     description="Employment intelligence module of Bitey IA Web.",
 )
 
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("JOBIA_CORS_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "PUT", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -50,32 +60,82 @@ JOBS: list[Job] = [
     Job(id="jobia-3", title="Analista de datos junior", company="JobIA Network", location="Brasil", modality="Híbrido", kind="Contrato", match=84, summary="Análisis, limpieza e interpretación de datos para apoyar decisiones de negocio.", skills=["Python", "SQL", "Excel", "Datos"]),
 ]
 
+# Temporary process-local storage. Production persistence is intentionally kept
+# behind the product contract so a database can be introduced without changing
+# JobIA-Web or JobIA-app API semantics.
 PROFILES: dict[str, Profile] = {}
 
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    return {"status": "ok", "service": "jobia", "version": APP_VERSION}
+    return {"status": "ok", "service": "jobia", "version": APP_VERSION, "contract": API_CONTRACT}
 
 
 @app.get("/api/v1/capabilities")
 def capabilities() -> dict[str, Any]:
     return {
         "module": "jobia",
-        "parent": "bitey-web",
+        "parent": GENERAL_MODULE,
         "capabilities": ["opportunities", "matching", "profiles", "applications", "alerts"],
-        "api_version": "jobia-v1",
+        "api_version": API_CONTRACT,
+        "trainer": TRAINER_MODULE,
     }
 
 
 @app.get("/api/v1/module/status")
 def module_status() -> dict[str, Any]:
-    return {"module": "JobIA", "parent": "Bitey IA Web", "status": "ready", "contract": "jobia-v1"}
+    return {
+        "module": "JobIA",
+        "parent": "Bitey IA Web",
+        "status": "ready",
+        "contract": API_CONTRACT,
+        "trainer": {"module": TRAINER_MODULE, "role": "training-and-validation"},
+    }
 
 
 @app.get("/api/v1/cognitive/status")
 def cognitive_status() -> dict[str, Any]:
-    return {"status": "delegated", "owner": "Bitey IA Web", "module": "JobIA", "mode": "employment-intelligence"}
+    return {
+        "status": "delegated",
+        "owner": "Bitey IA Web",
+        "module": "JobIA",
+        "mode": "employment-intelligence",
+        "bidirectional": True,
+        "inbound": "Bitey IA Web may delegate employment capabilities to JobIA",
+        "outbound": "JobIA may request general capabilities from Bitey IA Web",
+    }
+
+
+@app.get("/api/v1/integrations")
+def integrations() -> dict[str, Any]:
+    return {
+        "contract": API_CONTRACT,
+        "general_intelligence": {
+            "module": GENERAL_MODULE,
+            "direction": "bidirectional",
+            "purpose": "general reasoning, orchestration, tools, memory and policies",
+        },
+        "trainer": {
+            "module": TRAINER_MODULE,
+            "direction": "trainer-to-jobia",
+            "purpose": "validated employment capabilities, evaluation, regression and feedback",
+            "public_client_api": False,
+        },
+        "clients": ["JobIA-Web", "JobIA-app"],
+    }
+
+
+@app.get("/api/v1/contract")
+def contract() -> dict[str, Any]:
+    return {
+        "name": API_CONTRACT,
+        "module": "JobIA",
+        "specialization": "employment-and-work",
+        "orchestrator": "Bitey IA Web",
+        "trainer": TRAINER_MODULE,
+        "clients": ["JobIA-Web", "JobIA-app"],
+        "principle": "Bitey IA Web coordinates; JobIA executes employment specialization; Bitey Trainer trains and validates.",
+    }
 
 
 @app.get("/jobs", response_model=list[Job])
@@ -123,9 +183,10 @@ def manifest() -> dict[str, Any]:
     return {
         "id": "jobia",
         "name": "JobIA",
-        "parent_system": "bitey-web",
+        "parent_system": GENERAL_MODULE,
         "role": "specialized employment intelligence module",
         "clients": ["JobIA-Web", "JobIA-app"],
-        "trainer": "bitey-trainer",
-        "contract": "jobia-v1",
+        "trainer": TRAINER_MODULE,
+        "contract": API_CONTRACT,
+        "integration": "bidirectional-with-bitey-web",
     }
