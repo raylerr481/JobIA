@@ -102,6 +102,17 @@ JOBS: list[Job] = [
         skills=["Support", "Windows", "Networking", "Customer service"],
     ),
     Job(
+        id="jobia-remote-python",
+        title="Python Automation Developer",
+        company="JobIA Network",
+        location="Brazil",
+        modality="Remote",
+        kind="Contract",
+        match=91,
+        summary="Build Python automation, integrations, data workflows, and internal tools for remote teams.",
+        skills=["Python", "Automation", "APIs", "Data analysis"],
+    ),
+    Job(
         id="jobia-3",
         title="Junior Data Analyst",
         company="JobIA Network",
