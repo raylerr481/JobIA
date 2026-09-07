@@ -77,7 +77,7 @@ jobs:
                       assert 'Python' in python_jobs['result']['filters']['skills']
                       assert all('Python' in job['skills'] for job in python_jobs['result']['jobs'])
 
-                      python_remote = await delegate(client, 'Python + remoto', 'ci-python-remote')
+                      python_remote = await delegate(client, 'busca trabajos de Python remoto', 'ci-python-remote')
                       assert python_remote['result']['filters']['modality'] == 'Remote'
                       assert 'Python' in python_remote['result']['filters']['skills']
                       assert all(job['modality'] == 'Remote' for job in python_remote['result']['jobs'])
