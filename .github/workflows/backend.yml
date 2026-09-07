@@ -18,7 +18,7 @@ jobs:
       - run: python -m compileall app
       - name: Import application
         run: python -c "from app.main import app; assert app.title == 'JobIA Backend'"
-      - name: Smoke test API, persistence, and delegated execution
+      - name: Smoke test API, persistence, delegated execution, and filters
         run: |
           python - <<'PY'
           import os
@@ -29,6 +29,24 @@ jobs:
           with tempfile.TemporaryDirectory() as tmp:
               os.environ['JOBIA_DB_PATH'] = os.path.join(tmp, 'jobia.sqlite3')
               from app.main import app
+
+              async def delegate(client, message, conversation_id):
+                  response = await client.post('/api/v1/capabilities/delegate', json={
+                      'contract': 'jobia-v1',
+                      'capability': 'jobia',
+                      'message': message,
+                      'conversation_id': conversation_id,
+                      'source': 'bitey-web',
+                      'mode': 'specialized'
+                  })
+                  assert response.status_code == 200
+                  body = response.json()
+                  assert body['delegated'] is True
+                  assert body['execution_status'] == 'completed'
+                  assert body['result_type'] == 'opportunities'
+                  assert body['result']['count'] >= 1
+                  assert body['result']['jobs']
+                  return body
 
               async def main():
                   transport = httpx.ASGITransport(app=app)
@@ -51,21 +69,19 @@ jobs:
                       assert loaded.status_code == 200
                       assert loaded.json()['skills'] == ['Python', 'Networking']
 
-                      opportunities = await client.post('/api/v1/capabilities/delegate', json={
-                          'contract': 'jobia-v1',
-                          'capability': 'jobia',
-                          'message': 'búscame trabajo remoto',
-                          'conversation_id': 'ci-opportunities',
-                          'source': 'bitey-web',
-                          'mode': 'specialized'
-                      })
-                      assert opportunities.status_code == 200
-                      opportunity_body = opportunities.json()
-                      assert opportunity_body['delegated'] is True
-                      assert opportunity_body['execution_status'] == 'completed'
-                      assert opportunity_body['result_type'] == 'opportunities'
-                      assert opportunity_body['result']['count'] >= 1
-                      assert opportunity_body['result']['jobs']
+                      remote = await delegate(client, 'búscame trabajo remoto', 'ci-remote')
+                      assert remote['result']['filters']['modality'] == 'Remote'
+                      assert all(job['modality'] == 'Remote' for job in remote['result']['jobs'])
+
+                      python_jobs = await delegate(client, 'busca trabajos de Python', 'ci-python')
+                      assert 'Python' in python_jobs['result']['filters']['skills']
+                      assert all('Python' in job['skills'] for job in python_jobs['result']['jobs'])
+
+                      python_remote = await delegate(client, 'Python + remoto', 'ci-python-remote')
+                      assert python_remote['result']['filters']['modality'] == 'Remote'
+                      assert 'Python' in python_remote['result']['filters']['skills']
+                      assert all(job['modality'] == 'Remote' for job in python_remote['result']['jobs'])
+                      assert all('Python' in job['skills'] for job in python_remote['result']['jobs'])
 
                       matching = await client.post('/api/v1/capabilities/delegate', json={
                           'contract': 'jobia-v1',
