@@ -18,7 +18,7 @@ jobs:
       - run: python -m compileall app
       - name: Import application
         run: python -c "from app.main import app; assert app.title == 'JobIA Backend'"
-      - name: Smoke test API and persistence
+      - name: Smoke test API, persistence, and delegated execution
         run: |
           python - <<'PY'
           import os
@@ -36,19 +36,65 @@ jobs:
                       health = await client.get('/health')
                       assert health.status_code == 200
                       assert health.json()['persistence'] == 'sqlite'
+                      assert health.json()['version'] == '1.4.0'
 
                       profile = {
                           'email': 'ci@example.com',
                           'profession': 'IT',
-                          'mode': 'Remoto',
+                          'mode': 'Remote',
                           'aiOpportunities': True,
-                          'skills': ['Python', 'Redes']
+                          'skills': ['Python', 'Networking']
                       }
                       saved = await client.put('/profile', json=profile)
                       assert saved.status_code == 200
                       loaded = await client.get('/profile?email=ci%40example.com')
                       assert loaded.status_code == 200
-                      assert loaded.json()['skills'] == ['Python', 'Redes']
+                      assert loaded.json()['skills'] == ['Python', 'Networking']
+
+                      opportunities = await client.post('/api/v1/capabilities/delegate', json={
+                          'contract': 'jobia-v1',
+                          'capability': 'jobia',
+                          'message': 'búscame trabajo remoto',
+                          'conversation_id': 'ci-opportunities',
+                          'source': 'bitey-web',
+                          'mode': 'specialized'
+                      })
+                      assert opportunities.status_code == 200
+                      opportunity_body = opportunities.json()
+                      assert opportunity_body['delegated'] is True
+                      assert opportunity_body['execution_status'] == 'completed'
+                      assert opportunity_body['result_type'] == 'opportunities'
+                      assert opportunity_body['result']['count'] >= 1
+                      assert opportunity_body['result']['jobs']
+
+                      matching = await client.post('/api/v1/capabilities/delegate', json={
+                          'contract': 'jobia-v1',
+                          'capability': 'jobia',
+                          'message': 'qué trabajo encaja conmigo',
+                          'conversation_id': 'ci-matching',
+                          'source': 'bitey-web',
+                          'mode': 'specialized'
+                      })
+                      assert matching.status_code == 200
+                      matching_body = matching.json()
+                      assert matching_body['execution_status'] == 'needs_input'
+                      assert matching_body['result_type'] == 'matching'
+                      assert 'profile.skills' in matching_body['result']['required']
+
+                      application = await client.post('/api/v1/capabilities/delegate', json={
+                          'contract': 'jobia-v1',
+                          'capability': 'jobia',
+                          'message': 'mejora mi CV para jobia-1',
+                          'conversation_id': 'ci-application',
+                          'source': 'bitey-web',
+                          'mode': 'specialized'
+                      })
+                      assert application.status_code == 200
+                      application_body = application.json()
+                      assert application_body['execution_status'] == 'needs_input'
+                      assert application_body['result_type'] == 'application'
+                      assert application_body['result']['job_id'] == 'jobia-1'
+                      assert 'profile' in application_body['result']['required']
 
               asyncio.run(main())
           PY
