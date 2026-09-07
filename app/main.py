@@ -133,20 +133,36 @@ def delegated_intent(message: str) -> str | None:
         return "opportunity_search"
     return None
 
-def delegated_query(message: str) -> str:
+def delegated_filters(message: str) -> tuple[str, str, list[str]]:
     text = normalize(message)
-    removable = ("buscame", "busca", "buscar", "trabajo", "trabajos", "empleo", "empleos", "remoto", "remota", "vacante", "vacantes", "oportunidades", "por favor")
-    for word in removable: text = text.replace(word, " ")
-    return " ".join(text.split())
+    modality = "Remote" if any(term in text for term in ("remoto", "remota", "remote")) else ""
+    known_skills = sorted({skill for job in JOBS for skill in job.skills}, key=len, reverse=True)
+    requested_skills = [skill for skill in known_skills if normalize(skill) in text]
+    removable = ("buscame", "busca", "buscar", "trabajo", "trabajos", "empleo", "empleos", "remoto", "remota", "remote", "vacante", "vacantes", "oportunidades", "por favor", "de", "para", "con")
+    query = text
+    for word in removable:
+        query = query.replace(word, " ")
+    for skill in requested_skills:
+        query = query.replace(normalize(skill), " ")
+    query = " ".join(query.split())
+    return query, modality, requested_skills
 
 def execute_delegation(request: DelegationRequest) -> dict[str, Any]:
     intent = delegated_intent(request.message)
     base = handle_delegation(request)
     if intent == "opportunity_search":
-        query = delegated_query(request.message)
+        query, modality, requested_skills = delegated_filters(request.message)
         profile = Profile()
-        result = sorted((enrich_job(job, profile) for job in JOBS if not query or query in normalize(f"{job.title} {job.summary} {' '.join(job.skills)}")), key=lambda job: job.match, reverse=True)
-        return {**base, "execution_status": "completed", "result_type": "opportunities", "result": {"count": len(result), "jobs": [job.model_dump() for job in result]}, "answer": f"JobIA encontró {len(result)} oportunidades que coinciden con la solicitud."}
+        def matches(job: Job) -> bool:
+            if modality and normalize(job.modality) != normalize(modality):
+                return False
+            if requested_skills and not any(any(overlaps(requested, skill) for skill in job.skills) for requested in requested_skills):
+                return False
+            if query and query not in normalize(f"{job.title} {job.summary} {' '.join(job.skills)}"):
+                return False
+            return True
+        result = sorted((enrich_job(job, profile) for job in JOBS if matches(job)), key=lambda job: job.match, reverse=True)
+        return {**base, "execution_status": "completed", "result_type": "opportunities", "result": {"count": len(result), "filters": {"modality": modality or None, "skills": requested_skills, "query": query or None}, "jobs": [job.model_dump() for job in result]}, "answer": f"JobIA encontró {len(result)} oportunidades que coinciden con la solicitud."}
     if intent == "profile_matching":
         return {**base, "execution_status": "needs_input", "result_type": "matching", "result": {"required": ["profile.skills", "profile.mode", "profile.profession"], "hint": "Provide a JobIA profile or email so matching can use the saved profile."}, "answer": "Puedo hacer el matching real, pero necesito el perfil laboral del usuario."}
     if intent == "application_preparation":
@@ -178,46 +194,3 @@ def contract(): return {"name": API_CONTRACT, "module": "JobIA", "parent_system"
 def delegate(request: DelegationRequest):
     if request.contract != API_CONTRACT or request.capability != "jobia": raise HTTPException(status_code=400, detail="Invalid JobIA delegation contract")
     return execute_delegation(request)
-
-@app.get("/jobs", response_model=list[Job])
-def get_jobs(q: str = Query(default=""), modality: str = Query(default=""), location: str = Query(default=""), kind: str = Query(default=""), email: str = Query(default="")):
-    search_term = q.strip().lower(); result = JOBS
-    if search_term: result = [job for job in result if search_term in f"{job.title} {job.company} {job.summary} {' '.join(job.skills)}".lower()]
-    if modality: result = [job for job in result if job.modality.lower() == modality.lower()]
-    if location: result = [job for job in result if location.lower() in job.location.lower()]
-    if kind: result = [job for job in result if kind.lower() in job.kind.lower()]
-    profile = load_profile(email)
-    return sorted((enrich_job(job, profile) for job in result), key=lambda job: job.match, reverse=True)
-
-@app.get("/jobs/{job_id}", response_model=Job)
-def get_job(job_id: str, email: str = Query(default="")):
-    for job in JOBS:
-        if job.id == job_id: return enrich_job(job, load_profile(email))
-    raise HTTPException(status_code=404, detail="Opportunity not found")
-
-@app.get("/profile", response_model=Profile)
-def get_profile(email: str = Query(default="")):
-    normalized_email = email.strip().lower()
-    if not normalized_email: return Profile()
-    connection = get_db()
-    try:
-        row = connection.execute("SELECT * FROM profiles WHERE email = ?", (normalized_email,)).fetchone()
-        if row is None: raise HTTPException(status_code=404, detail="Profile not found")
-        return profile_from_row(row)
-    finally: connection.close()
-
-@app.put("/profile", response_model=Profile)
-def save_profile(profile: Profile):
-    normalized_email = profile.email.strip().lower()
-    if not normalized_email: raise HTTPException(status_code=400, detail="email is required")
-    connection = get_db()
-    try:
-        connection.execute("INSERT INTO profiles (email, profession, mode, ai_opportunities, skills) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET profession = excluded.profession, mode = excluded.mode, ai_opportunities = excluded.ai_opportunities, skills = excluded.skills", (normalized_email, profile.profession, profile.mode, int(profile.aiOpportunities), json.dumps(profile.skills, ensure_ascii=False)))
-        connection.commit(); return profile.model_copy(update={"email": normalized_email})
-    finally: connection.close()
-
-@app.post("/applications/prepare", response_model=ApplicationDrafts)
-def prepare_application_endpoint(request: PreparationRequest):
-    job = next((item for item in JOBS if item.id == request.job_id), None)
-    if job is None: raise HTTPException(status_code=404, detail="Opportunity not found")
-    return prepare_application(job, request.profile)
