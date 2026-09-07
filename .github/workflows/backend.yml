@@ -38,7 +38,9 @@ jobs:
                       'conversation_id': conversation_id,
                       'source': 'bitey-web',
                       'mode': 'specialized'
-                  })
+                  }, follow_redirects=True)
+                  print('DELEGATION_STATUS=', response.status_code)
+                  print('DELEGATION_BODY=', response.text)
                   assert response.status_code == 200
                   body = response.json()
                   assert body['delegated'] is True
