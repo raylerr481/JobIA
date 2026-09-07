@@ -1,0 +1,51 @@
+name: Ensure Remote Python Job
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add a real Remote Python opportunity to the JobIA fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/main.py')
+          s = p.read_text(encoding='utf-8')
+          marker = 'id="jobia-remote-python"'
+          if marker in s:
+              print('Remote Python opportunity already present.')
+              raise SystemExit(0)
+          anchor = '    Job(\n        id="jobia-3",'
+          i = s.find(anchor)
+          if i < 0:
+              raise SystemExit('jobia-3 anchor not found')
+          block = '''    Job(\n        id="jobia-remote-python",\n        title="Python Automation Developer",\n        company="JobIA Network",\n        location="Brazil",\n        modality="Remote",\n        kind="Contract",\n        match=91,\n        summary="Build Python automation, integrations, data workflows, and internal tools for remote teams.",\n        skills=["Python", "Automation", "APIs", "Data analysis"],\n    ),\n'''
+          s = s[:i] + block + s[i:]
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- app/main.py; then
+            echo 'No patch required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/main.py
+          git commit -m 'fix: add remote Python JobIA opportunity'
+          git push
