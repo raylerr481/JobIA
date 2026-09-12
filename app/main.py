@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.capability_contract import CONTRACT, DelegationRequest, handle_delegation
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.1"
 API_CONTRACT = CONTRACT
 TRAINER_MODULE = "bitey-trainer"
 PARENT_MODULE = "bitey"
@@ -79,85 +79,29 @@ class ApplicationDrafts(BaseModel):
 
 
 JOBS: list[Job] = [
-    Job(
-        id="jobia-1",
-        title="AI Response Evaluator",
-        company="JobIA Network",
-        location="Brazil",
-        modality="Remote",
-        kind="Human-in-the-loop",
-        match=94,
-        summary="Evaluate AI responses using technical knowledge and quality criteria.",
-        skills=["AI", "Evaluation", "Portuguese", "Critical thinking"],
-    ),
-    Job(
-        id="jobia-2",
-        title="Remote Technical Support Specialist",
-        company="JobIA Network",
-        location="Brazil",
-        modality="Remote",
-        kind="Full-time",
-        match=89,
-        summary="Provide technical support and resolve issues for users and technology environments.",
-        skills=["Support", "Windows", "Networking", "Customer service"],
-    ),
-    Job(
-        id="jobia-remote-python",
-        title="Python Automation Developer",
-        company="JobIA Network",
-        location="Brazil",
-        modality="Remote",
-        kind="Contract",
-        match=91,
-        summary="Build Python automation, integrations, data workflows, and internal tools for remote teams.",
-        skills=["Python", "Automation", "APIs", "Data analysis"],
-    ),
-    Job(
-        id="jobia-3",
-        title="Junior Data Analyst",
-        company="JobIA Network",
-        location="Brazil",
-        modality="Hybrid",
-        kind="Contract",
-        match=84,
-        summary="Analyze, clean, and interpret data to support business decisions.",
-        skills=["Python", "SQL", "Excel", "Data analysis"],
-    ),
+    Job(id="jobia-1", title="AI Response Evaluator", company="JobIA Network", location="Brazil", modality="Remote", kind="Human-in-the-loop", match=94, summary="Evaluate AI responses using technical knowledge and quality criteria.", skills=["AI", "Evaluation", "Portuguese", "Critical thinking"]),
+    Job(id="jobia-2", title="Remote Technical Support Specialist", company="JobIA Network", location="Brazil", modality="Remote", kind="Full-time", match=89, summary="Provide technical support and resolve issues for users and technology environments.", skills=["Support", "Windows", "Networking", "Customer service"]),
+    Job(id="jobia-remote-python", title="Python Automation Developer", company="JobIA Network", location="Brazil", modality="Remote", kind="Contract", match=91, summary="Build Python automation, integrations, data workflows, and internal tools for remote teams.", skills=["Python", "Automation", "APIs", "Data analysis"]),
+    Job(id="jobia-3", title="Junior Data Analyst", company="JobIA Network", location="Brazil", modality="Hybrid", kind="Contract", match=84, summary="Analyze, clean, and interpret data to support business decisions.", skills=["Python", "SQL", "Excel", "Data analysis"]),
 ]
 
 
 def normalize(value: str) -> str:
-    return "".join(
-        ch for ch in unicodedata.normalize("NFD", value) if unicodedata.category(ch) != "Mn"
-    ).lower().strip()
+    return "".join(ch for ch in unicodedata.normalize("NFD", value) if unicodedata.category(ch) != "Mn").lower().strip()
 
 
 def overlaps(first: str, second: str) -> bool:
-    normalized_first, normalized_second = normalize(first), normalize(second)
-    if normalized_first == normalized_second:
+    a, b = normalize(first), normalize(second)
+    if a == b or a in b or b in a:
         return True
-    if normalized_first in normalized_second or normalized_second in normalized_first:
-        return True
-    first_tokens = {
-        token
-        for token in normalized_first.replace("+", " + ").replace("#", " # ").replace(".", " . ").split()
-        if len(token) > 2
-    }
-    second_tokens = {
-        token
-        for token in normalized_second.replace("+", " + ").replace("#", " # ").replace(".", " . ").split()
-        if len(token) > 2
-    }
-    return bool(first_tokens & second_tokens)
+    tokenize = lambda value: {token for token in value.replace("+", " + ").replace("#", " # ").replace(".", " . ").split() if len(token) > 2}
+    return bool(tokenize(a) & tokenize(b))
 
 
 def calculate_match(job: Job, profile: Profile):
-    reasons = [
-        MatchReason(skill=skill, matched=any(overlaps(owned, skill) for owned in profile.skills))
-        for skill in job.skills
-    ]
-    strengths = [reason.skill for reason in reasons if reason.matched]
-    gaps = [reason.skill for reason in reasons if not reason.matched]
+    reasons = [MatchReason(skill=skill, matched=any(overlaps(owned, skill) for owned in profile.skills)) for skill in job.skills]
+    strengths = [r.skill for r in reasons if r.matched]
+    gaps = [r.skill for r in reasons if not r.matched]
     skill_score = (len(strengths) / len(job.skills)) * 70 if job.skills else 50
     modality_score = 15 if normalize(job.modality) == normalize(profile.mode) else 5
     profession = normalize(profile.profession.split("/")[0]) if profile.profession else ""
@@ -174,9 +118,7 @@ def get_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS profiles (email TEXT PRIMARY KEY, profession TEXT NOT NULL, mode TEXT NOT NULL, ai_opportunities INTEGER NOT NULL, skills TEXT NOT NULL)"
-    )
+    connection.execute("CREATE TABLE IF NOT EXISTS profiles (email TEXT PRIMARY KEY, profession TEXT NOT NULL, mode TEXT NOT NULL, ai_opportunities INTEGER NOT NULL, skills TEXT NOT NULL)")
     return connection
 
 
@@ -188,13 +130,7 @@ def profile_from_row(row):
         skills = skills if isinstance(skills, list) else []
     except (TypeError, ValueError):
         skills = []
-    return Profile(
-        email=row["email"],
-        profession=row["profession"],
-        mode=row["mode"],
-        aiOpportunities=bool(row["ai_opportunities"]),
-        skills=[str(skill) for skill in skills],
-    )
+    return Profile(email=row["email"], profession=row["profession"], mode=row["mode"], aiOpportunities=bool(row["ai_opportunities"]), skills=[str(skill) for skill in skills])
 
 
 def load_profile(email: str) -> Profile:
@@ -209,6 +145,38 @@ def load_profile(email: str) -> Profile:
         connection.close()
 
 
+def resolve_profile(request: DelegationRequest) -> Profile | None:
+    candidates = []
+    user_id = request.context.user_id.strip()
+    if "@" in user_id:
+        candidates.append(user_id)
+    email_match = re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", request.message, re.I)
+    if email_match:
+        candidates.append(email_match.group(0))
+    for candidate in candidates:
+        profile = load_profile(candidate)
+        if profile.email and (profile.skills or profile.profession or profile.mode):
+            return profile
+    return None
+
+
+def resolve_job_identifier(message: str) -> Job | None:
+    text = normalize(message)
+    for job in JOBS:
+        if normalize(job.id) in text:
+            return job
+    numeric = re.search(r"\b(?:jobia[- ]?)?(\d+)\b", text)
+    if numeric:
+        candidate = f"jobia-{numeric.group(1)}"
+        job = next((item for item in JOBS if item.id == candidate), None)
+        if job:
+            return job
+    for job in JOBS:
+        if normalize(job.title) in text:
+            return job
+    return None
+
+
 def prepare_application(job: Job, profile: Profile) -> ApplicationDrafts:
     skills = [skill.strip() for skill in profile.skills if skill.strip()]
     skill_text = ", ".join(skills) if skills else "relevant technical and professional skills"
@@ -218,17 +186,8 @@ def prepare_application(job: Job, profile: Profile) -> ApplicationDrafts:
     match_text = f" My strengths include {', '.join(matched)}." if matched else ""
     return ApplicationDrafts(
         cvSummary=f"{profession} with results-oriented experience and knowledge in {skill_text}. Interested in {modality.lower()} opportunities and applying technical skills, problem solving, and continuous learning.{match_text}",
-        coverLetter=(
-            f"Hello,\n\nI am interested in the {job.title} opportunity at {job.company}. "
-            f"My profile as a {profession.lower()} and my knowledge of {skill_text} allow me to contribute technical capability, analysis, and results orientation.\n\n"
-            f"I would be glad to discuss my experience and how I can contribute to the team.\n\nRegards,\n{profile.email or 'Candidate'}"
-        ),
-        answers=(
-            f"Motivation: I am interested in {job.title} because it connects my experience as a {profession.lower()} with the opportunity to create value at {job.company}.\n\n"
-            f"Relevant strengths: {skill_text}."
-            + (f"\n\nDirect matches: {', '.join(matched)}." if matched else "")
-            + f"\n\nAvailability: {modality}."
-        ),
+        coverLetter=f"Hello,\n\nI am interested in the {job.title} opportunity at {job.company}. My profile as a {profession.lower()} and my knowledge of {skill_text} allow me to contribute technical capability, analysis, and results orientation.\n\nI would be glad to discuss my experience and how I can contribute to the team.\n\nRegards,\n{profile.email or 'Candidate'}",
+        answers=f"Motivation: I am interested in {job.title} because it connects my experience as a {profession.lower()} with the opportunity to create value at {job.company}.\n\nRelevant strengths: {skill_text}." + (f"\n\nDirect matches: {', '.join(matched)}." if matched else "") + f"\n\nAvailability: {modality}.",
         notes="Draft generated by JobIA Backend. Review personal data, requirements, experience, and conditions before authorizing any external action.",
     )
 
@@ -249,17 +208,13 @@ def delegated_filters(message: str) -> tuple[str, str, list[str]]:
     modality = "Remote" if any(term in text for term in ("remoto", "remota", "remote")) else ""
     known_skills = sorted({skill for job in JOBS for skill in job.skills}, key=len, reverse=True)
     requested_skills = [skill for skill in known_skills if normalize(skill) in text]
-    removable = (
-        "buscame", "busca", "buscar", "trabajo", "trabajos", "empleo", "empleos", "remoto", "remota",
-        "remote", "vacante", "vacantes", "oportunidades", "por favor", "de", "para", "con"
-    )
+    removable = ("buscame", "busca", "buscar", "trabajo", "trabajos", "empleo", "empleos", "remoto", "remota", "remote", "vacante", "vacantes", "oportunidades", "por favor", "de", "para", "con")
     query = text
     for word in removable:
         query = query.replace(word, " ")
     for skill in requested_skills:
         query = query.replace(normalize(skill), " ")
-    query = " ".join(query.split())
-    return query, modality, requested_skills
+    return " ".join(query.split()), modality, requested_skills
 
 
 def execute_delegation(request: DelegationRequest) -> dict[str, Any]:
@@ -267,8 +222,7 @@ def execute_delegation(request: DelegationRequest) -> dict[str, Any]:
     base = handle_delegation(request)
     if intent == "opportunity_search":
         query, modality, requested_skills = delegated_filters(request.message)
-        profile = Profile()
-
+        profile = resolve_profile(request) or Profile()
         def matches(job: Job) -> bool:
             if modality and normalize(job.modality) != normalize(modality):
                 return False
@@ -277,55 +231,23 @@ def execute_delegation(request: DelegationRequest) -> dict[str, Any]:
             if query and query not in normalize(f"{job.title} {job.summary} {' '.join(job.skills)}"):
                 return False
             return True
-
-        result = sorted(
-            (enrich_job(job, profile) for job in JOBS if matches(job)),
-            key=lambda job: job.match,
-            reverse=True,
-        )
-        return {
-            **base,
-            "execution_status": "completed",
-            "result_type": "opportunities",
-            "result": {
-                "count": len(result),
-                "filters": {"modality": modality or None, "skills": requested_skills, "query": query or None},
-                "jobs": [job.model_dump() for job in result],
-            },
-            "answer": f"JobIA encontró {len(result)} oportunidades que coinciden con la solicitud.",
-        }
+        result = sorted((enrich_job(job, profile) for job in JOBS if matches(job)), key=lambda job: job.match, reverse=True)
+        return {**base, "execution_status": "completed", "result_type": "opportunities", "result": {"count": len(result), "filters": {"modality": modality or None, "skills": requested_skills, "query": query or None}, "jobs": [job.model_dump() for job in result]}, "answer": f"JobIA encontró {len(result)} oportunidades que coinciden con la solicitud."}
     if intent == "profile_matching":
-        return {
-            **base,
-            "execution_status": "needs_input",
-            "result_type": "matching",
-            "result": {"required": ["profile.skills", "profile.mode", "profile.profession"], "hint": "Provide a JobIA profile or email so matching can use the saved profile."},
-            "answer": "Puedo hacer el matching real, pero necesito el perfil laboral del usuario.",
-        }
+        profile = resolve_profile(request)
+        if profile is None:
+            return {**base, "execution_status": "needs_input", "result_type": "matching", "result": {"required": ["persisted profile"], "hint": "Provide a registered user email or a saved JobIA profile."}, "answer": "No encontré un perfil laboral persistido para este usuario."}
+        result = sorted((enrich_job(job, profile) for job in JOBS), key=lambda job: job.match, reverse=True)
+        return {**base, "execution_status": "completed", "result_type": "matching", "result": {"profile": profile.model_dump(), "count": len(result), "jobs": [job.model_dump() for job in result]}, "answer": f"JobIA hizo el matching usando el perfil persistido y encontró {len(result)} oportunidades ordenadas por compatibilidad."}
     if intent == "application_preparation":
-        job_match = re.search(r"jobia[- ]?(\d+)", normalize(request.message))
-        if not job_match:
-            return {
-                **base,
-                "execution_status": "needs_input",
-                "result_type": "application",
-                "result": {"required": ["job_id", "profile"], "hint": "Specify the JobIA opportunity and profile before preparing application materials."},
-                "answer": "Puedo preparar la postulación, pero necesito identificar la vacante y el perfil laboral.",
-            }
-        return {
-            **base,
-            "execution_status": "needs_input",
-            "result_type": "application",
-            "result": {"required": ["profile"], "job_id": f"jobia-{job_match.group(1)}"},
-            "answer": "La vacante está identificada; necesito el perfil laboral para generar una postulación personalizada.",
-        }
-    return {
-        **base,
-        "execution_status": "accepted",
-        "result_type": "delegation",
-        "result": None,
-        "answer": "JobIA aceptó la solicitud. Necesito una intención laboral más específica para ejecutar una operación.",
-    }
+        job = resolve_job_identifier(request.message)
+        if job is None:
+            return {**base, "execution_status": "needs_input", "result_type": "application", "result": {"required": ["job_id"], "hint": "Specify a valid JobIA job ID or opportunity title."}, "answer": "Puedo preparar la postulación, pero necesito identificar una vacante válida."}
+        profile = resolve_profile(request)
+        if profile is None:
+            return {**base, "execution_status": "needs_input", "result_type": "application", "result": {"required": ["persisted profile"], "job_id": job.id}, "answer": "La vacante está identificada; necesito el perfil laboral persistido para generar una postulación personalizada."}
+        return {**base, "execution_status": "completed", "result_type": "application", "result": {"job_id": job.id, "profile_email": profile.email, "drafts": prepare_application(enrich_job(job, profile), profile).model_dump()}, "answer": f"Preparé una propuesta de candidatura para {job.title} usando el perfil persistido."}
+    return {**base, "execution_status": "accepted", "result_type": "delegation", "result": None, "answer": "JobIA aceptó la solicitud. Necesito una intención laboral más específica para ejecutar una operación."}
 
 
 @app.on_event("startup")
@@ -361,77 +283,45 @@ def integrations():
 
 @app.get("/api/v1/contract")
 def contract():
-    return {"name": API_CONTRACT, "module": "JobIA", "parent_system": "Bitey IA", "specialization": "employment-and-work", "host_channel": "Bitey IA Web", "trainer": TRAINER_MODULE, "clients": ["JobIA-Web", "JobIA-app"], "principle": "Bitey IA coordinates; JobIA executes employment specialization; Bitey Trainer trains and validates."}
+    return {"name": API_CONTRACT, "module": "JobIA", "parent_system": "Bitey IA", "specialization": "employment-and-work", "host_channel": HOST_CHANNEL, "trainer": TRAINER_MODULE, "clients": ["JobIA-Web", "JobIA-app"], "principle": "Bitey IA coordinates; JobIA executes employment specialization; Bitey Trainer trains and validates."}
 
 
 @app.get("/jobs")
-def list_jobs(
-    q: str = Query(default=""),
-    modality: str = Query(default=""),
-    location: str = Query(default=""),
-    kind: str = Query(default=""),
-    email: str = Query(default=""),
-):
+def list_jobs(q: str = Query(default=""), modality: str = Query(default=""), location: str = Query(default=""), kind: str = Query(default=""), email: str = Query(default="")):
     profile = load_profile(email) if email.strip() else Profile()
-    normalized_q = normalize(q)
-    normalized_modality = normalize(modality)
-    normalized_location = normalize(location)
-    normalized_kind = normalize(kind)
-
+    nq, nm, nl, nk = normalize(q), normalize(modality), normalize(location), normalize(kind)
     def matches(job: Job) -> bool:
-        if normalized_modality and normalize(job.modality) != normalized_modality:
-            return False
-        if normalized_location and normalized_location not in normalize(job.location):
-            return False
-        if normalized_kind and normalized_kind not in normalize(job.kind):
-            return False
-        if normalized_q:
-            haystack = normalize(f"{job.title} {job.company} {job.location} {job.modality} {job.kind} {job.summary} {' '.join(job.skills)}")
-            if normalized_q not in haystack:
-                return False
+        if nm and normalize(job.modality) != nm: return False
+        if nl and nl not in normalize(job.location): return False
+        if nk and nk not in normalize(job.kind): return False
+        if nq and nq not in normalize(f"{job.title} {job.company} {job.location} {job.modality} {job.kind} {job.summary} {' '.join(job.skills)}"): return False
         return True
-
-    result = [enrich_job(job, profile) for job in JOBS if matches(job)]
-    result.sort(key=lambda job: job.match, reverse=True)
+    result = sorted([enrich_job(job, profile) for job in JOBS if matches(job)], key=lambda job: job.match, reverse=True)
     return {"jobs": [job.model_dump() for job in result], "count": len(result)}
 
 
 @app.get("/jobs/{job_id}")
 def get_job(job_id: str, email: str = Query(default="")):
     job = next((item for item in JOBS if item.id == job_id), None)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+    if job is None: raise HTTPException(status_code=404, detail="Job not found")
     profile = load_profile(email) if email.strip() else Profile()
     return enrich_job(job, profile)
 
 
 @app.get("/profile")
 def get_profile(email: str = Query(default="")):
-    if not email.strip():
-        raise HTTPException(status_code=400, detail="email is required")
+    if not email.strip(): raise HTTPException(status_code=400, detail="email is required")
     return load_profile(email)
 
 
 @app.put("/profile")
 def put_profile(profile: Profile):
     normalized_email = profile.email.strip().lower()
-    if not normalized_email:
-        raise HTTPException(status_code=400, detail="email is required")
+    if not normalized_email: raise HTTPException(status_code=400, detail="email is required")
     stored = profile.model_copy(update={"email": normalized_email})
     connection = get_db()
     try:
-        connection.execute(
-            """
-            INSERT INTO profiles(email, profession, mode, ai_opportunities, skills)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(email) DO UPDATE SET
-                profession=excluded.profession,
-                mode=excluded.mode,
-                ai_opportunities=excluded.ai_opportunities,
-                skills=excluded.skills
-            """,
-            (stored.email, stored.profession, stored.mode, 1 if stored.aiOpportunities else 0, json.dumps(stored.skills)),
-        )
+        connection.execute("INSERT INTO profiles(email, profession, mode, ai_opportunities, skills) VALUES (?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET profession=excluded.profession, mode=excluded.mode, ai_opportunities=excluded.ai_opportunities, skills=excluded.skills", (stored.email, stored.profession, stored.mode, 1 if stored.aiOpportunities else 0, json.dumps(stored.skills)))
         connection.commit()
     finally:
         connection.close()
@@ -441,8 +331,7 @@ def put_profile(profile: Profile):
 @app.post("/applications/prepare")
 def prepare_application_endpoint(request: PreparationRequest):
     job = next((item for item in JOBS if item.id == request.job_id), None)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+    if job is None: raise HTTPException(status_code=404, detail="Job not found")
     return prepare_application(enrich_job(job, request.profile), request.profile)
 
 
