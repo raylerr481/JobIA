@@ -277,6 +277,12 @@ def initialize_database():
     connection.close()
 
 
+@app.get("/")
+def root():
+    """Provide a lightweight service landing/uptime response."""
+    return {"service": "jobia", "status": "ok", "health": "/health", "api_contract": API_CONTRACT}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "jobia", "version": APP_VERSION, "contract": API_CONTRACT, "persistence": "sqlite"}
