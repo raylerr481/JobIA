@@ -146,6 +146,12 @@ def load_profile(email: str) -> Profile:
 
 
 def resolve_profile(request: DelegationRequest) -> Profile | None:
+    """Resolve only profiles that actually exist in persistent storage.
+
+    load_profile() intentionally returns defaults for unknown emails so the UI
+    can initialize a new profile. Delegation must not mistake those defaults
+    for a registered/saved profile.
+    """
     candidates = []
     user_id = request.context.user_id.strip()
     if "@" in user_id:
@@ -153,10 +159,25 @@ def resolve_profile(request: DelegationRequest) -> Profile | None:
     email_match = re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", request.message, re.I)
     if email_match:
         candidates.append(email_match.group(0))
+
+    seen: set[str] = set()
     for candidate in candidates:
-        profile = load_profile(candidate)
-        if profile.email and (profile.skills or profile.profession or profile.mode):
-            return profile
+        normalized_email = candidate.strip().lower()
+        if not normalized_email or normalized_email in seen:
+            continue
+        seen.add(normalized_email)
+
+        connection = get_db()
+        try:
+            row = connection.execute(
+                "SELECT * FROM profiles WHERE email = ?",
+                (normalized_email,),
+            ).fetchone()
+        finally:
+            connection.close()
+
+        if row is not None:
+            return profile_from_row(row)
     return None
 
 
