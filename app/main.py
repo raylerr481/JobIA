@@ -277,6 +277,12 @@ def initialize_database():
     connection.close()
 
 
+@app.get("/")
+def root():
+    """Provide a lightweight service landing/uptime response."""
+    return {"service": "jobia", "status": "ok", "health": "/health", "api_contract": API_CONTRACT}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "jobia", "version": APP_VERSION, "contract": API_CONTRACT, "persistence": "sqlite"}
@@ -290,6 +296,34 @@ def capabilities():
 @app.get("/api/v1/module/status")
 def module_status():
     return {"module": "JobIA", "parent": "Bitey IA", "host_channel": "Bitey IA Web", "status": "ready", "contract": API_CONTRACT, "trainer": {"module": TRAINER_MODULE, "role": "training-and-validation"}}
+
+
+@app.get("/api/v1/module/manifest")
+def module_manifest():
+    """Return the public JobIA route manifest."""
+    return {
+        "module": "JobIA",
+        "version": APP_VERSION,
+        "contract": API_CONTRACT,
+        "parent": PARENT_MODULE,
+        "host_channel": HOST_CHANNEL,
+        "capabilities": ["opportunities", "matching", "profiles", "applications", "alerts"],
+        "routes": [
+            {"method": "GET", "path": "/health"},
+            {"method": "GET", "path": "/api/v1/capabilities"},
+            {"method": "GET", "path": "/api/v1/module/status"},
+            {"method": "GET", "path": "/api/v1/module/manifest"},
+            {"method": "GET", "path": "/api/v1/cognitive/status"},
+            {"method": "GET", "path": "/api/v1/integrations"},
+            {"method": "GET", "path": "/api/v1/contract"},
+            {"method": "GET", "path": "/jobs"},
+            {"method": "GET", "path": "/jobs/{job_id}"},
+            {"method": "GET", "path": "/profile"},
+            {"method": "PUT", "path": "/profile"},
+            {"method": "POST", "path": "/applications/prepare"},
+            {"method": "POST", "path": "/api/v1/capabilities/delegate"},
+        ],
+    }
 
 
 @app.get("/api/v1/cognitive/status")
