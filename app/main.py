@@ -292,6 +292,34 @@ def module_status():
     return {"module": "JobIA", "parent": "Bitey IA", "host_channel": "Bitey IA Web", "status": "ready", "contract": API_CONTRACT, "trainer": {"module": TRAINER_MODULE, "role": "training-and-validation"}}
 
 
+@app.get("/api/v1/module/manifest")
+def module_manifest():
+    """Return the public JobIA route manifest."""
+    return {
+        "module": "JobIA",
+        "version": APP_VERSION,
+        "contract": API_CONTRACT,
+        "parent": PARENT_MODULE,
+        "host_channel": HOST_CHANNEL,
+        "capabilities": ["opportunities", "matching", "profiles", "applications", "alerts"],
+        "routes": [
+            {"method": "GET", "path": "/health"},
+            {"method": "GET", "path": "/api/v1/capabilities"},
+            {"method": "GET", "path": "/api/v1/module/status"},
+            {"method": "GET", "path": "/api/v1/module/manifest"},
+            {"method": "GET", "path": "/api/v1/cognitive/status"},
+            {"method": "GET", "path": "/api/v1/integrations"},
+            {"method": "GET", "path": "/api/v1/contract"},
+            {"method": "GET", "path": "/jobs"},
+            {"method": "GET", "path": "/jobs/{job_id}"},
+            {"method": "GET", "path": "/profile"},
+            {"method": "PUT", "path": "/profile"},
+            {"method": "POST", "path": "/applications/prepare"},
+            {"method": "POST", "path": "/api/v1/capabilities/delegate"},
+        ],
+    }
+
+
 @app.get("/api/v1/cognitive/status")
 def cognitive_status():
     return {"status": "delegated", "owner": "Bitey IA", "host_channel": "Bitey IA Web", "module": "JobIA", "mode": "employment-intelligence", "bidirectional": True, "inbound": "Bitey IA may delegate employment capabilities to JobIA", "outbound": "JobIA may request general capabilities from Bitey IA"}
